@@ -25,6 +25,8 @@ end entity;
 architecture UART_ARCH of UART is
 	-------------------------- STATES --------------------------
 	
+	type state_type is (idle,bit_sampling,byte_processing,display_state);
+	signal pr_state, nx_state: state_type;
 	
 	
 	-------------------------- SIGNALS --------------------------
@@ -92,9 +94,9 @@ begin
 	State_Change: process(all)
 	begin
 		if rstn = '0' then
-			
+			pr_state <= idle;
 		elsif rising_edge(clk) then
-			
+			pr_state <= nx_state;
 		end if;
 	end process;
 	
@@ -102,44 +104,34 @@ begin
 	State_Transitions: process(all)
 	begin
 		if rstn = '0' then
-			
+			nx_state <= idle;
 		elsif rising_edge(clk) then
 			
+			case pr_state is
+				when idle 					=> nx_state <= idle;
+				when bit_sampling 		=> nx_state <= idle;
+				when byte_processing 	=> nx_state <= idle;
+				when display_state 		=> nx_state <= idle;
+			end case;
 		end if;
 	end process;
 	
 	-- Logic For what to do every State
-	State_Updates: process(all)
+	Value_Processing: process(all)
 	begin
 		if rstn = '0' then
+			null;
+		elsif rising_edge(clk) then
 			
-		elsif rising_edge(clk) then -- hmmm
-			
+			case pr_state is
+				when idle 					=> null;
+				when bit_sampling 		=> null;
+				when byte_processing 	=> null;
+				when display_state	 	=> null;
+			end case;
 		end if;
 	end process;
 	
-	Data_start: process(all)
-	begin
-		
-		-- CLock Independent Process for detection of falling edge given startbit 
-		
-	end process;
+
 	
-	data_ready: process(all)
-	begin
-		
-		-- Entire Thing Will Turn Into a Latch, need to rework into a state machine
-		
-		-- Display Recived Data
-		if UART_RX_STATUS(7) = '1' then
-			display_hex1 <= display(UART_RX_DATA(3 downto 0));
-			display_hex2 <= display(UART_RX_DATA(7 downto 4));
-		end if;
-		
-		-- Reset Data and Status Register
-		UART_RX_DATA <= "00000000";
-		UART_RX_STATUS(7) <= '0';
-		UART_RX_STATUS(0) <= '1';
-		
-	end process;
 end architecture;
