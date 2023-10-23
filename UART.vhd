@@ -24,7 +24,7 @@ end entity;
 
 architecture UART_ARCH of UART is
 	-------------------------- STATES --------------------------
-	
+	--TODO: Setup Basics Of State Machine
 	
 	
 	-------------------------- SIGNALS --------------------------
@@ -90,6 +90,8 @@ begin
 	
 	data_ready: process(all)
 	begin
+
+		-- Entire Thing Will Turn Into a Latch, need to rework into a state machine
 		
 		-- Display Recived Data
 		if UART_RX_STATUS(7) = '1' then
