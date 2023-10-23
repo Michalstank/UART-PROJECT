@@ -6,7 +6,7 @@ entity UART is
 	generic(
 		F_CPU: natural := 50_000_000;
 		BAUD: natural := 9_600;
-		BAUD_RATE := 50_000_000/9_600;
+		BAUD_RATE: natural := 50_000_000/9_600
 	);
 	
 	port(
@@ -17,7 +17,7 @@ entity UART is
 		
 		-- Display of recived data
 		display_hex1,
-		display_hex2: out std_logic_vector(7 downto 0); 
+		display_hex2: out std_logic_vector(7 downto 0)
 	);
 end entity;
 
