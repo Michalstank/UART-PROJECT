@@ -24,7 +24,7 @@ end entity;
 
 architecture UART_ARCH of UART is
 	-------------------------- STATES --------------------------
-	--TODO: Setup Basics Of State Machine
+	
 	
 	
 	-------------------------- SIGNALS --------------------------
@@ -88,9 +88,46 @@ architecture UART_ARCH of UART is
 	
 begin
 	
+	-- Change Of States
+	State_Change: process(all)
+	begin
+		if rstn = '0' then
+			
+		elsif rising_edge(clk) then
+			
+		end if;
+	end process;
+	
+	-- Logic For which State To Change To
+	State_Transitions: process(all)
+	begin
+		if rstn = '0' then
+			
+		elsif rising_edge(clk) then
+			
+		end if;
+	end process;
+	
+	-- Logic For what to do every State
+	State_Updates: process(all)
+	begin
+		if rstn = '0' then
+			
+		elsif rising_edge(clk) then -- hmmm
+			
+		end if;
+	end process;
+	
+	Data_start: process(all)
+	begin
+		
+		-- CLock Independent Process for detection of falling edge given startbit 
+		
+	end process;
+	
 	data_ready: process(all)
 	begin
-
+		
 		-- Entire Thing Will Turn Into a Latch, need to rework into a state machine
 		
 		-- Display Recived Data
