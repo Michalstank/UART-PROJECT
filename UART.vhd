@@ -41,9 +41,9 @@ architecture UART_ARCH of UART is
 	signal UART_RX_STATUS: std_logic_vector(7 downto 0) := "00000000";
 	/*
 		0 - Wait For Startbit
-		1 - Sampling Majority/Simple Mode
+		1 - Startbit
 		2 - Sampling
-		3 - 
+		3 - Sampling Majority/Simple Mode
 		4 - 
 		5 - 
 		6 - 
@@ -107,10 +107,35 @@ begin
 			nx_state <= idle;
 		elsif rising_edge(clk) then
 			
+			
+			--Tired, Logic Probably Broke but me thinks it works
 			case pr_state is
-				when idle 					=> nx_state <= idle;
-				when bit_sampling 		=> nx_state <= idle;
-				when byte_processing 	=> nx_state <= idle;
+				--Wait For Input
+				when idle 					=> if UART_RX_STATUS(2) = '1' or UART_RX_STATUS(1) = '1' then
+														
+														nx_state <= bit_sampling;
+														
+													else
+														
+														nx_state <= idle;
+														
+													end if;
+					
+				--Sample Input					-- Needs to be depent on logic to detect when done with sampling
+				when bit_sampling 		=> nx_state <= byte_processing;
+					
+				--Process Sampled Input
+				when byte_processing 	=> if UART_RX_STATUS(7) = '1' then
+														
+														nx_state <= display_state;
+														
+													else 
+														
+														nx_state <= bit_sampling;
+														
+													end if;
+					
+				--Display Input
 				when display_state 		=> nx_state <= idle;
 			end case;
 		end if;
@@ -127,11 +152,23 @@ begin
 				when idle 					=> null;
 				when bit_sampling 		=> null;
 				when byte_processing 	=> null;
-				when display_state	 	=> null;
+				when display_state	 	=> display_hex1 <= display(UART_RX_DATA(3 downto 0));
+													display_hex2 <= display(UART_RX_DATA(7 downto 4));
 			end case;
 		end if;
 	end process;
 	
+	-- Clock Independent Input Detection
+	UART_RX_START: process(all)
+	begin
+		
+		if falling_edge(rx_signal) and UART_RX_STATUS(0) = '1' then
+			
+			UART_RX_STATUS(1) <= '1';
+			
+		end if;
+		
+	end process;
 
 	
 end architecture;
