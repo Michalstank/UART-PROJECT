@@ -6,7 +6,8 @@ entity UART is
 	generic(
 		F_CPU: natural := 50_000_000;
 		BAUD: natural := 9_600;
-		BAUD_RATE: natural := 50_000_000/9_600
+		BAUD_RATE: natural := 50_000_000/9_600;
+		SAMPLE_RATE: natural := 8*50_000_000/9_600
 	);
 	
 	port(
@@ -32,23 +33,21 @@ architecture UART_ARCH of UART is
 	-------------------------- SIGNALS --------------------------
 	
 	-- Data Register
-	signal UART_RX_DATA: std_logic_vector(7 downto 0) := "00000000";
+	signal UART_RX_DATA: std_logic_vector(7 downto 0) := 		"00000000";
 	
 	-- Sampling Register
-	signal UART_RX_SAMPLE: std_logic_vector(7 downto 0) := "00000000";
+	signal UART_RX_SAMPLE: std_logic_vector(7 downto 0) := 	"00000000";
 	
 	-- Status Register
-	signal UART_RX_STATUS: std_logic_vector(7 downto 0) := "00000000";
+	signal UART_RX_STATUS: std_logic_vector(3 downto 0) := 	"0000";
 	/*
 		0 - Wait For Startbit
-		1 - Startbit
-		2 - Sampling
-		3 - Sampling Majority/Simple Mode
-		4 - 
-		5 - 
-		6 - 
-		7 - Read Data Ready
+		1 - Sampling
+		2 - 
+		3 - Read Data Ready
 	*/
+	
+	signal UART_RX_BYTE_CNT: natural range 0 to 8:= 0;
 	
 	-- Clock Counter of RX
 	signal UART_RX_CLKCNT: natural := 0;
@@ -88,10 +87,27 @@ architecture UART_ARCH of UART is
 		
 	end function;
 	
+	--Check If High/Low
+	pure function byte_value(input: std_logic_vector) return std_logic is
+		
+		variable output: std_logic;
+		
+	begin
+		
+		if to_integer(unsigned(input)) = 15 then
+			output := '1';
+		else
+			output := '0';
+		end if;
+		
+		return output;
+		
+	end function;
+	
 begin
 	
 	-- Change Of States
-	State_Change: process(all)
+	State_Change: process(clk, rstn)
 	begin
 		if rstn = '0' then
 			pr_state <= idle;
@@ -101,38 +117,33 @@ begin
 	end process;
 	
 	-- Logic For which State To Change To
-	State_Transitions: process(all)
+	State_Transitions: process(clk, rstn)
 	begin
 		if rstn = '0' then
 			nx_state <= idle;
 		elsif rising_edge(clk) then
 			
-			
 			--Tired, Logic Probably Broke but me thinks it works
 			case pr_state is
-				--Wait For Input
-				when idle 					=> if UART_RX_STATUS(2) = '1' or UART_RX_STATUS(1) = '1' then
-														
-														nx_state <= bit_sampling;
-														
-													else
-														
+				--Wait For Input				--Wait For Startbit Detection
+				when idle 					=> if UART_RX_STATUS(0) = '1' then
 														nx_state <= idle;
-														
+													else
+														nx_state <= bit_sampling;
 													end if;
 					
-				--Sample Input					-- Needs to be depent on logic to detect when done with sampling
-				when bit_sampling 		=> nx_state <= byte_processing;
-					
-				--Process Sampled Input
-				when byte_processing 	=> if UART_RX_STATUS(7) = '1' then
-														
-														nx_state <= display_state;
-														
-													else 
-														
+				--Sample Input					-- If Sampling Bit Set To 1, Stay In State
+				when bit_sampling 		=> if UART_RX_STATUS(1) = '1' then
 														nx_state <= bit_sampling;
-														
+													else
+														nx_state <= byte_processing;
+													end if;
+					
+				--Process Sampled Input		-- If Byte Ready Print Out
+				when byte_processing 	=> if UART_RX_STATUS(3) = '1' then
+														nx_state <= display_state;
+													else 
+														nx_state <= bit_sampling;
 													end if;
 					
 				--Display Input
@@ -142,18 +153,51 @@ begin
 	end process;
 	
 	-- Logic For what to do every State
-	Value_Processing: process(all)
+	Value_Processing: process(clk, rstn)
 	begin
 		if rstn = '0' then
-			null;
+			
+			UART_RX_DATA 		<= "00000000";
+			UART_RX_SAMPLE 	<= "00000000";
+			UART_RX_BYTE_CNT 	<= 0;
+			UART_RX_CLKCNT		<= 0;
+			UART_RX_SAMPLECNT <= 0;
+			
 		elsif rising_edge(clk) then
 			
-			case pr_state is
-				when idle 					=> null;
+			case pr_state is				
+				--Idle State					--Reset All Registers/Values
+				when idle 					=> UART_RX_DATA 		<= "00000000";
+													UART_RX_SAMPLE 	<= "00000000";
+													UART_RX_BYTE_CNT 	<= 0;
+													UART_RX_CLKCNT		<= 0;
+													UART_RX_SAMPLECNT <= 0;
+				
+				--Bit Sampling					--Loop Over Input Signal
 				when bit_sampling 		=> null;
-				when byte_processing 	=> null;
+				
+				--Process Byte From Bit		--Whenever Bit Recived Process Output Variable
+				when byte_processing 	=>	UART_RX_DATA(UART_RX_BYTE_CNT) <= byte_value(UART_RX_SAMPLE(5 downto 2));
+													
+													UART_RX_BYTE_CNT <= UART_RX_BYTE_CNT + 1;
+													
+													if UART_RX_BYTE_CNT >= 7 then
+														
+														UART_RX_STATUS(3) <= '1';
+														
+													else
+														
+														--UART_RX_STATUS(3) <= '0';
+														
+													end if;
+				
+				--Code For Display			--Display Hex Values
 				when display_state	 	=> display_hex1 <= display(UART_RX_DATA(3 downto 0));
 													display_hex2 <= display(UART_RX_DATA(7 downto 4));
+													
+													--Restart Waiting For Startbit
+													UART_RX_STATUS(0) <= '1';
+													UART_RX_STATUS(3) <= '0';
 			end case;
 		end if;
 	end process;
@@ -162,13 +206,11 @@ begin
 	UART_RX_START: process(all)
 	begin
 		
-		if falling_edge(rx_signal) and UART_RX_STATUS(0) = '1' then
+		if falling_edge(rx_signal) then
 			
-			UART_RX_STATUS(1) <= '1';
+			UART_RX_STATUS(2) <= '0';
 			
 		end if;
 		
 	end process;
-
-	
 end architecture;
