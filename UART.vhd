@@ -104,7 +104,24 @@ architecture UART_ARCH of UART is
 		
 	end function;
 	
+	signal rx_input: 	std_logic;
+	signal rx_prev:	std_logic;
+	
 begin
+	
+	-- Clock Dependent Input Detection For Clock Independent Signal
+	process(all) is
+	begin
+		
+		if rising_edge(clk) then
+			
+			rx_input <= rx_signal;
+			
+		end if;
+		
+	end process;
+	
+	rx_prev <= rx_input when rising_edge(clk);	
 	
 	-- Change Of States
 	State_Change: process(clk, rstn)
@@ -117,7 +134,7 @@ begin
 	end process;
 	
 	-- Logic For which State To Change To
-	State_Transitions: process(clk, rstn)
+	State_Transitions: process(all)
 	begin
 		if rstn = '0' then
 			nx_state <= idle;
@@ -153,7 +170,7 @@ begin
 	end process;
 	
 	-- Logic For what to do every State
-	Value_Processing: process(clk, rstn)
+	Value_Processing: process(all)
 	begin
 		if rstn = '0' then
 			
@@ -172,7 +189,14 @@ begin
 													UART_RX_BYTE_CNT 	<= 0;
 													UART_RX_CLKCNT		<= 0;
 													UART_RX_SAMPLECNT <= 0;
-				
+													
+													--BROKE ASS FALLING EDGE DETECTION
+													if (rx_prev xor rx_input) = '1' then
+														UART_RX_STATUS(0) <= '0';
+													else 
+														UART_RX_STATUS(0) <= '1';
+													end if;
+					
 				--Bit Sampling					--Loop Over Input Signal
 				when bit_sampling 		=> null;
 				
@@ -187,30 +211,16 @@ begin
 														
 													else
 														
-														--UART_RX_STATUS(3) <= '0';
+														UART_RX_STATUS(3) <= '0';
 														
 													end if;
 				
 				--Code For Display			--Display Hex Values
 				when display_state	 	=> display_hex1 <= display(UART_RX_DATA(3 downto 0));
 													display_hex2 <= display(UART_RX_DATA(7 downto 4));
-													
-													--Restart Waiting For Startbit
-													UART_RX_STATUS(0) <= '1';
-													UART_RX_STATUS(3) <= '0';
 			end case;
 		end if;
 	end process;
 	
-	-- Clock Independent Input Detection
-	UART_RX_START: process(all)
-	begin
-		
-		if falling_edge(rx_signal) then
-			
-			UART_RX_STATUS(2) <= '0';
-			
-		end if;
-		
-	end process;
+
 end architecture;
