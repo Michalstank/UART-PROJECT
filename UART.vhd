@@ -7,7 +7,7 @@ entity UART is
 		F_CPU: natural := 50_000_000;
 		BAUD: natural := 9_600;
 		BAUD_RATE: natural := 50_000_000/9_600;
-		SAMPLE_RATE: natural := 8*50_000_000/9_600
+		SAMPLE_RATE: natural := 50_000_000/(8*9_600)
 	);
 	
 	port(
@@ -47,13 +47,16 @@ architecture UART_ARCH of UART is
 		3 - Read Data Ready
 	*/
 	
-	signal UART_RX_BYTE_CNT: natural range 0 to 8:= 0;
+	-- Clock Counter of Sampling Counter
+	signal UART_RX_SAMPLECNT: natural := 0;
+	
+	signal UART_RX_BYTE_CNT: 	natural range 0 to 8:= 0;
+	signal UART_RX_SMP_CNT: 	natural range 0 to 8:= 0;
 	
 	-- Clock Counter of RX
 	signal UART_RX_CLKCNT: natural := 0;
 	
-	-- Clock Counter of Sampling Counter
-	signal UART_RX_SAMPLECNT: natural := 0;
+
 	
 	-------------------------- FUNCTIONS --------------------------
 	
@@ -165,12 +168,16 @@ begin
 					
 				--Display Input
 				when display_state 		=> nx_state <= idle;
+				when others 				=> null;
 			end case;
 		end if;
 	end process;
 	
 	-- Logic For what to do every State
 	Value_Processing: process(all)
+		
+		variable limit: natural;
+		
 	begin
 		if rstn = '0' then
 			
@@ -198,15 +205,31 @@ begin
 													end if;
 					
 				--Bit Sampling					--Loop Over Input Signal
-				when bit_sampling 		=> null;
+				when bit_sampling 		=> if UART_RX_SAMPLECNT = (SAMPLE_RATE*(UART_RX_SMP_CNT + 1))/2 then
+														
+														UART_RX_SAMPLE(UART_RX_SMP_CNT) <= rx_signal;
+														
+													elsif UART_RX_SAMPLECNT = (SAMPLE_RATE*(UART_RX_SMP_CNT + 1)) then
+														
+														UART_RX_SMP_CNT <= UART_RX_SMP_CNT + 1;
+														
+													end if;
+													
+													UART_RX_SAMPLECNT <= UART_RX_SAMPLECNT + 1;
+													
+													if UART_RX_SMP_CNT > 7 then
+														UART_RX_STATUS(1) <= '0';
+														UART_RX_SMP_CNT <= 0;
+													end if;
 				
 				--Process Byte From Bit		--Whenever Bit Recived Process Output Variable
 				when byte_processing 	=>	UART_RX_DATA(UART_RX_BYTE_CNT) <= byte_value(UART_RX_SAMPLE(5 downto 2));
 													
 													UART_RX_BYTE_CNT <= UART_RX_BYTE_CNT + 1;
 													
-													if UART_RX_BYTE_CNT >= 7 then
+													if UART_RX_BYTE_CNT > 7 then
 														
+														UART_RX_BYTE_CNT <= 0;
 														UART_RX_STATUS(3) <= '1';
 														
 													else
