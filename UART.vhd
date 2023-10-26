@@ -67,8 +67,8 @@ architecture UART_ARCH of UART is
 	begin
 		
 		case input is
-			when "0000" => output := "01111110"; -- Print 0
-			when "0001" => output := "00110000"; -- Print 1
+			when "0000" => output := "11000000"; -- Print 0
+			when "0001" => output := "10110000"; -- Print 1
 			when "0010" => output := "10100100"; -- Print 2
 			when "0011" => output := "10110000"; -- Print 3
 			when "0100" => output := "10011001"; -- Print 4
